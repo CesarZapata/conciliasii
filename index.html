@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ConciliaSII — Conciliación SII + Banco</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase-js.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase-js.min.js"></script>
 <style>
 :root {
   --bg: #0a0e17;
@@ -798,20 +798,22 @@ let supabase = null;
 let currentUser = null;
 
 function createSupabaseClient(url, key) {
-  // Handle different SDK export formats
-  if (typeof window.supabase !== 'undefined') {
-    if (typeof window.supabase.createClient === 'function') {
-      return window.supabase.createClient(url, key);
-    }
-    if (typeof window.supabase.supabase !== 'undefined' && typeof window.supabase.supabase.createClient === 'function') {
-      return window.supabase.supabase.createClient(url, key);
-    }
+  // Debug: log what's available
+  console.log('Supabase global:', typeof window.supabase, window.supabase);
+  
+  const sb = window.supabase;
+  if (sb) {
+    // Format 1: window.supabase.createClient (direct)
+    if (typeof sb.createClient === 'function') return sb.createClient(url, key);
+    // Format 2: window.supabase.supabase.createClient (nested)
+    if (sb.supabase && typeof sb.supabase.createClient === 'function') return sb.supabase.createClient(url, key);
+    // Format 3: window.supabase.default.createClient (ESM default export)
+    if (sb.default && typeof sb.default.createClient === 'function') return sb.default.createClient(url, key);
   }
-  // Try global createClient
-  if (typeof window.createClient === 'function') {
-    return window.createClient(url, key);
-  }
-  throw new Error('Supabase SDK no se cargó correctamente. Recarga la página.');
+  
+  // List what IS available for debugging
+  const keys = sb ? Object.keys(sb).join(', ') : 'N/A';
+  throw new Error('SDK cargado pero createClient no encontrado. Propiedades disponibles: ' + keys);
 }
 
 function getSupabaseConfig() {
