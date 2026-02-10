@@ -551,6 +551,8 @@ body::before {
       <h2>Concilia<span>SII</span></h2>
       <p>Conciliación de facturas SII con tu banco</p>
     </div>
+    <div class="auth-error" id="authError"></div>
+    <div class="auth-success" id="authSuccess"></div>
     <!-- Supabase config (shown first if not configured) -->
     <div id="authSupabaseForm">
       <div style="background:var(--accent-dim); border:1px solid rgba(34,211,238,0.3); border-radius:var(--radius-sm); padding:12px 16px; margin-bottom:16px; font-size:13px; color:var(--accent);">
@@ -578,8 +580,6 @@ body::before {
         <button class="auth-tab active" onclick="showAuthTab('login')">Iniciar Sesión</button>
         <button class="auth-tab" onclick="showAuthTab('register')">Registrarse</button>
       </div>
-      <div class="auth-error" id="authError"></div>
-      <div class="auth-success" id="authSuccess"></div>
       <div id="authLoginForm">
         <div class="auth-field">
           <label>Email</label>
@@ -808,8 +808,11 @@ function initSupabase() {
   if (url && key) {
     try {
       supabase = window.supabase.createClient(url, key);
-      document.getElementById('cfgSupabaseUrl').value = url;
-      document.getElementById('cfgSupabaseKey').value = key;
+      // Update config fields if they exist (they may not be visible yet)
+      const cfgUrl = document.getElementById('cfgSupabaseUrl');
+      const cfgKey = document.getElementById('cfgSupabaseKey');
+      if (cfgUrl) cfgUrl.value = url;
+      if (cfgKey) cfgKey.value = key;
       return true;
     } catch (e) {
       console.error('Supabase init error:', e);
@@ -834,15 +837,39 @@ function saveSupabaseConfig() {
 function saveSupabaseFromAuth() {
   const url = document.getElementById('authSupabaseUrl').value.trim();
   const key = document.getElementById('authSupabaseKey').value.trim();
-  if (!url || !key) { showAuthError('Ingresa tanto la URL como la Anon Key de Supabase'); return; }
+
+  // Validaciones
+  if (!url || !key) {
+    document.getElementById('authError').textContent = 'Ingresa tanto la URL como la Anon Key de Supabase';
+    document.getElementById('authError').style.display = 'block';
+    return;
+  }
+  if (!url.startsWith('https://') || !url.includes('.supabase.co')) {
+    document.getElementById('authError').textContent = 'La URL debe tener formato: https://xxxxx.supabase.co';
+    document.getElementById('authError').style.display = 'block';
+    return;
+  }
+  if (!key.startsWith('eyJ')) {
+    document.getElementById('authError').textContent = 'La Anon Key debe empezar con "eyJ..."';
+    document.getElementById('authError').style.display = 'block';
+    return;
+  }
+
   localStorage.setItem('sb_url', url);
   localStorage.setItem('sb_key', key);
-  if (initSupabase()) {
+
+  try {
+    supabase = window.supabase.createClient(url, key);
+    document.getElementById('authError').style.display = 'none';
     document.getElementById('authSupabaseForm').style.display = 'none';
     document.getElementById('authFormsContainer').style.display = 'block';
     showAuthTab('register');
-  } else {
-    showAuthError('No se pudo conectar. Verifica las credenciales.');
+  } catch (e) {
+    console.error('Supabase error:', e);
+    document.getElementById('authError').textContent = 'Error al conectar: ' + e.message;
+    document.getElementById('authError').style.display = 'block';
+    localStorage.removeItem('sb_url');
+    localStorage.removeItem('sb_key');
   }
 }
 
