@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ConciliaSII — Conciliación SII + Banco</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase-js.min.js"></script>
 <style>
 :root {
   --bg: #0a0e17;
@@ -797,6 +797,23 @@ body::before {
 let supabase = null;
 let currentUser = null;
 
+function createSupabaseClient(url, key) {
+  // Handle different SDK export formats
+  if (typeof window.supabase !== 'undefined') {
+    if (typeof window.supabase.createClient === 'function') {
+      return window.supabase.createClient(url, key);
+    }
+    if (typeof window.supabase.supabase !== 'undefined' && typeof window.supabase.supabase.createClient === 'function') {
+      return window.supabase.supabase.createClient(url, key);
+    }
+  }
+  // Try global createClient
+  if (typeof window.createClient === 'function') {
+    return window.createClient(url, key);
+  }
+  throw new Error('Supabase SDK no se cargó correctamente. Recarga la página.');
+}
+
 function getSupabaseConfig() {
   const url = localStorage.getItem('sb_url') || '';
   const key = localStorage.getItem('sb_key') || '';
@@ -807,7 +824,7 @@ function initSupabase() {
   const { url, key } = getSupabaseConfig();
   if (url && key) {
     try {
-      supabase = window.supabase.createClient(url, key);
+      supabase = createSupabaseClient(url, key);
       // Update config fields if they exist (they may not be visible yet)
       const cfgUrl = document.getElementById('cfgSupabaseUrl');
       const cfgKey = document.getElementById('cfgSupabaseKey');
@@ -859,7 +876,7 @@ function saveSupabaseFromAuth() {
   localStorage.setItem('sb_key', key);
 
   try {
-    supabase = window.supabase.createClient(url, key);
+    supabase = createSupabaseClient(url, key);
     document.getElementById('authError').style.display = 'none';
     document.getElementById('authSupabaseForm').style.display = 'none';
     document.getElementById('authFormsContainer').style.display = 'block';
