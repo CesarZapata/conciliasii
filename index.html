@@ -5,7 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ConciliaSII — Conciliación SII + Banco</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase-js.min.js"></script>
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+window._supabaseCreateClient = createClient;
+window.dispatchEvent(new Event('supabase-ready'));
+</script>
 <style>
 :root {
   --bg: #0a0e17;
@@ -798,22 +802,10 @@ let supabase = null;
 let currentUser = null;
 
 function createSupabaseClient(url, key) {
-  // Debug: log what's available
-  console.log('Supabase global:', typeof window.supabase, window.supabase);
-  
-  const sb = window.supabase;
-  if (sb) {
-    // Format 1: window.supabase.createClient (direct)
-    if (typeof sb.createClient === 'function') return sb.createClient(url, key);
-    // Format 2: window.supabase.supabase.createClient (nested)
-    if (sb.supabase && typeof sb.supabase.createClient === 'function') return sb.supabase.createClient(url, key);
-    // Format 3: window.supabase.default.createClient (ESM default export)
-    if (sb.default && typeof sb.default.createClient === 'function') return sb.default.createClient(url, key);
+  if (typeof window._supabaseCreateClient === 'function') {
+    return window._supabaseCreateClient(url, key);
   }
-  
-  // List what IS available for debugging
-  const keys = sb ? Object.keys(sb).join(', ') : 'N/A';
-  throw new Error('SDK cargado pero createClient no encontrado. Propiedades disponibles: ' + keys);
+  throw new Error('Supabase SDK aún se está cargando. Espera un momento y vuelve a intentar.');
 }
 
 function getSupabaseConfig() {
@@ -1566,11 +1558,24 @@ document.getElementById('regPasswordConfirm').addEventListener('keypress', e => 
 // =======================================
 // INIT
 // =======================================
-if (initSupabase()) {
-  showAuthScreenState();
-  checkSession();
+function appInit() {
+  if (initSupabase()) {
+    showAuthScreenState();
+    checkSession();
+  } else {
+    showAuthScreenState();
+  }
+}
+
+// If SDK already loaded, init now. Otherwise wait for it.
+if (typeof window._supabaseCreateClient === 'function') {
+  appInit();
 } else {
-  showAuthScreenState();
+  window.addEventListener('supabase-ready', appInit);
+  // Fallback: if SDK never loads after 5s, still show the auth screen
+  setTimeout(() => {
+    showAuthScreenState();
+  }, 5000);
 }
 </script>
 </body>
