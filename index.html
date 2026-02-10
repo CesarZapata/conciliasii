@@ -551,37 +551,61 @@ body::before {
       <h2>Concilia<span>SII</span></h2>
       <p>Conciliación de facturas SII con tu banco</p>
     </div>
-    <div class="auth-tabs">
-      <button class="auth-tab active" onclick="showAuthTab('login')">Iniciar Sesión</button>
-      <button class="auth-tab" onclick="showAuthTab('register')">Registrarse</button>
+    <!-- Supabase config (shown first if not configured) -->
+    <div id="authSupabaseForm">
+      <div style="background:var(--accent-dim); border:1px solid rgba(34,211,238,0.3); border-radius:var(--radius-sm); padding:12px 16px; margin-bottom:16px; font-size:13px; color:var(--accent);">
+        🔌 <strong>Paso 1:</strong> Conecta tu base de datos Supabase
+      </div>
+      <div class="auth-field">
+        <label>Supabase URL</label>
+        <input type="text" id="authSupabaseUrl" placeholder="https://xxxxx.supabase.co" />
+      </div>
+      <div class="auth-field">
+        <label>Supabase Anon Key</label>
+        <input type="text" id="authSupabaseKey" placeholder="eyJhbG..." />
+      </div>
+      <button class="btn-auth" onclick="saveSupabaseFromAuth()" style="margin-bottom:8px;">🔌 Conectar a Supabase</button>
+      <p style="font-size:11px; color:var(--text-muted); text-align:center;">Encuentra estos datos en Supabase → Settings → API</p>
     </div>
-    <div class="auth-error" id="authError"></div>
-    <div class="auth-success" id="authSuccess"></div>
-    <div id="authLoginForm">
-      <div class="auth-field">
-        <label>Email</label>
-        <input type="email" id="loginEmail" placeholder="tu@email.com" />
+
+    <!-- Auth forms (shown after Supabase is configured) -->
+    <div id="authFormsContainer" style="display:none;">
+      <div style="background:var(--green-dim); border:1px solid rgba(52,211,153,0.3); border-radius:var(--radius-sm); padding:10px 14px; margin-bottom:16px; font-size:13px; color:var(--green); display:flex; align-items:center; justify-content:space-between;" id="authConnectedBadge">
+        <span>✓ Supabase conectado</span>
+        <button onclick="resetSupabaseConfig()" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:12px; text-decoration:underline;">Cambiar</button>
       </div>
-      <div class="auth-field">
-        <label>Contraseña</label>
-        <input type="password" id="loginPassword" placeholder="••••••••" />
+      <div class="auth-tabs">
+        <button class="auth-tab active" onclick="showAuthTab('login')">Iniciar Sesión</button>
+        <button class="auth-tab" onclick="showAuthTab('register')">Registrarse</button>
       </div>
-      <button class="btn-auth" onclick="doLogin()">Iniciar Sesión</button>
-    </div>
-    <div id="authRegisterForm" style="display:none">
-      <div class="auth-field">
-        <label>Email</label>
-        <input type="email" id="regEmail" placeholder="tu@email.com" />
+      <div class="auth-error" id="authError"></div>
+      <div class="auth-success" id="authSuccess"></div>
+      <div id="authLoginForm">
+        <div class="auth-field">
+          <label>Email</label>
+          <input type="email" id="loginEmail" placeholder="tu@email.com" />
+        </div>
+        <div class="auth-field">
+          <label>Contraseña</label>
+          <input type="password" id="loginPassword" placeholder="••••••••" />
+        </div>
+        <button class="btn-auth" onclick="doLogin()">Iniciar Sesión</button>
       </div>
-      <div class="auth-field">
-        <label>Contraseña</label>
-        <input type="password" id="regPassword" placeholder="Mínimo 6 caracteres" />
+      <div id="authRegisterForm" style="display:none">
+        <div class="auth-field">
+          <label>Email</label>
+          <input type="email" id="regEmail" placeholder="tu@email.com" />
+        </div>
+        <div class="auth-field">
+          <label>Contraseña</label>
+          <input type="password" id="regPassword" placeholder="Mínimo 6 caracteres" />
+        </div>
+        <div class="auth-field">
+          <label>Confirmar Contraseña</label>
+          <input type="password" id="regPasswordConfirm" placeholder="Repetir contraseña" />
+        </div>
+        <button class="btn-auth" onclick="doRegister()">Crear Cuenta</button>
       </div>
-      <div class="auth-field">
-        <label>Confirmar Contraseña</label>
-        <input type="password" id="regPasswordConfirm" placeholder="Repetir contraseña" />
-      </div>
-      <button class="btn-auth" onclick="doRegister()">Crear Cuenta</button>
     </div>
   </div>
 </div>
@@ -807,19 +831,57 @@ function saveSupabaseConfig() {
   }
 }
 
+function saveSupabaseFromAuth() {
+  const url = document.getElementById('authSupabaseUrl').value.trim();
+  const key = document.getElementById('authSupabaseKey').value.trim();
+  if (!url || !key) { showAuthError('Ingresa tanto la URL como la Anon Key de Supabase'); return; }
+  localStorage.setItem('sb_url', url);
+  localStorage.setItem('sb_key', key);
+  if (initSupabase()) {
+    document.getElementById('authSupabaseForm').style.display = 'none';
+    document.getElementById('authFormsContainer').style.display = 'block';
+    showAuthTab('register');
+  } else {
+    showAuthError('No se pudo conectar. Verifica las credenciales.');
+  }
+}
+
+function resetSupabaseConfig() {
+  localStorage.removeItem('sb_url');
+  localStorage.removeItem('sb_key');
+  supabase = null;
+  document.getElementById('authSupabaseForm').style.display = 'block';
+  document.getElementById('authFormsContainer').style.display = 'none';
+  document.getElementById('authSupabaseUrl').value = '';
+  document.getElementById('authSupabaseKey').value = '';
+}
+
+function showAuthScreenState() {
+  const { url, key } = getSupabaseConfig();
+  if (url && key) {
+    document.getElementById('authSupabaseForm').style.display = 'none';
+    document.getElementById('authFormsContainer').style.display = 'block';
+    document.getElementById('authSupabaseUrl').value = url;
+    document.getElementById('authSupabaseKey').value = key;
+  } else {
+    document.getElementById('authSupabaseForm').style.display = 'block';
+    document.getElementById('authFormsContainer').style.display = 'none';
+  }
+}
+
 // =======================================
 // AUTH
 // =======================================
 function showAuthTab(tab) {
-  document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('#authFormsContainer .auth-tab').forEach(t => t.classList.remove('active'));
   if (tab === 'login') {
     document.getElementById('authLoginForm').style.display = 'block';
     document.getElementById('authRegisterForm').style.display = 'none';
-    document.querySelectorAll('.auth-tab')[0].classList.add('active');
+    document.querySelectorAll('#authFormsContainer .auth-tab')[0].classList.add('active');
   } else {
     document.getElementById('authLoginForm').style.display = 'none';
     document.getElementById('authRegisterForm').style.display = 'block';
-    document.querySelectorAll('.auth-tab')[1].classList.add('active');
+    document.querySelectorAll('#authFormsContainer .auth-tab')[1].classList.add('active');
   }
   document.getElementById('authError').style.display = 'none';
   document.getElementById('authSuccess').style.display = 'none';
@@ -862,6 +924,7 @@ async function doLogout() {
   currentUser = null;
   document.getElementById('authScreen').style.display = 'flex';
   document.getElementById('appContainer').style.display = 'none';
+  showAuthScreenState();
 }
 
 async function checkSession() {
@@ -1458,7 +1521,10 @@ document.getElementById('regPasswordConfirm').addEventListener('keypress', e => 
 // INIT
 // =======================================
 if (initSupabase()) {
+  showAuthScreenState();
   checkSession();
+} else {
+  showAuthScreenState();
 }
 </script>
 </body>
